@@ -9,7 +9,7 @@ import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
 
-# Securely retrieve API keys using Streamlit secrets
+# Use Streamlit secrets for API keys
 NASA_API_URL = f"https://api.nasa.gov/planetary/apod?api_key={st.secrets['NASA_API_KEY']}"
 os.environ["HUGGINGFACE_API_TOKEN"] = st.secrets["HUGGINGFACE_API_TOKEN"]
 
