@@ -1,8 +1,8 @@
 streamlit
 crewai
-langchain_community
-#chromadb==0.4.24
+langchain
+langchain-community
 faiss-cpu
-requests
 speechrecognition
 pydub
+requests
