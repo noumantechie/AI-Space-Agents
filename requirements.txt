@@ -1,9 +1,5 @@
-streamlit
-crewai
+crewai==0.1.50
+chromadb==0.3.26
 langchain-community
-chromadb
-requests
-speechrecognition
-pydub
 faiss-cpu
 huggingface-hub
