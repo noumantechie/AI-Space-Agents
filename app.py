@@ -1,10 +1,10 @@
 import streamlit as st
+import os
 from crewai import Agent, Task, Crew
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import WebBaseLoader
 import requests
-import os
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
