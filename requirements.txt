@@ -1,7 +1,7 @@
 streamlit
-crewai==0.15.0
+crewai
 langchain_community
-chromadb==0.4.24
+#chromadb==0.4.24
 faiss-cpu
 requests
 speechrecognition
