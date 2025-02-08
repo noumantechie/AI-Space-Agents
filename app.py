@@ -9,7 +9,7 @@ import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
 
-# Configuration
+# Configuration - Critical fix for Hugging Face
 NASA_API_URL = f"https://api.nasa.gov/planetary/apod?api_key={st.secrets['NASA_API_KEY']}"
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = st.secrets["HUGGINGFACE_API_TOKEN"]
 
@@ -23,36 +23,44 @@ LANGUAGE_CODES = {
 }
 
 def speech_to_text(audio_file, language_code):
-    """Convert audio to text using Google's speech recognition"""
+    """Convert audio to text with improved error handling"""
     recognizer = sr.Recognizer()
-    
     try:
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
-            if audio_file.name.endswith('.wav'):
-                tmp_file.write(audio_file.getvalue())
-            else:
+            # Handle non-WAV files
+            if not audio_file.name.endswith('.wav'):
                 audio = AudioSegment.from_file(audio_file)
                 audio.export(tmp_file.name, format="wav")
+            else:
+                tmp_file.write(audio_file.getvalue())
             
+            # Process audio
             with sr.AudioFile(tmp_file.name) as source:
                 audio_data = recognizer.record(source)
                 return recognizer.recognize_google(audio_data, language=language_code)
-    except Exception as e:
-        st.error(f"Audio processing error: {str(e)}")
+                
+    except sr.UnknownValueError:
+        st.error("Could not understand audio")
+        return ""
+    except sr.RequestError as e:
+        st.error(f"Speech recognition error: {e}")
         return ""
     finally:
-        if os.path.exists(tmp_file.name):
+        if 'tmp_file' in locals() and os.path.exists(tmp_file.name):
             os.remove(tmp_file.name)
 
 def get_nasa_data():
-    """Fetch space data from NASA API"""
+    """Fetch NASA data with timeout handling"""
     try:
-        return requests.get(NASA_API_URL, timeout=10).json()
-    except Exception as e:
-        return {"error": str(e)}
+        response = requests.get(NASA_API_URL, timeout=15)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"NASA API Error: {str(e)}")
+        return {}
 
 def load_knowledge_base():
-    """Load space knowledge base"""
+    """Load space knowledge base with error recovery"""
     try:
         loader = WebBaseLoader(["https://mars.nasa.gov/news/"])
         docs = loader.load()[:3]
@@ -63,45 +71,46 @@ def load_knowledge_base():
         return None
 
 def setup_agents(language='en'):
-    """Configure AI agents"""
+    """Configure AI agents with simplified setup"""
     researcher = Agent(
         role="Space Research Analyst",
-        goal="Analyze and verify space-related data",
-        backstory="Expert in space science data analysis",
+        goal="Analyze and verify space-related data from NASA sources",
+        backstory="Expert in astrophysics data analysis with multilingual capabilities",
         verbose=True,
         allow_delegation=False,
-        llm="huggingface/HuggingFaceH4/zephyr-7b-beta",
-        llm_kwargs={"temperature": 0.3, "max_length": 512}
+        memory=True,
+        llm="huggingface/HuggingFaceH4/zephyr-7b-beta"
     )
 
     educator = Agent(
         role="Science Educator",
-        goal="Explain complex concepts simply",
-        backstory="Multilingual science communicator",
+        goal="Explain complex space concepts in simple terms",
+        backstory="Multilingual science communicator with space science background",
         verbose=True,
         allow_delegation=False,
-        llm="huggingface/HuggingFaceH4/zephyr-7b-beta",
-        llm_kwargs={"temperature": 0.6, "max_length": 612}
+        memory=True,
+        llm="huggingface/HuggingFaceH4/zephyr-7b-beta"
     )
 
     return researcher, educator
 
 def process_question(question, lang_code='en'):
-    """Process user question through AI crew"""
+    """Process questions through AI crew with enhanced error handling"""
     try:
         nasa_data = get_nasa_data()
         researcher, educator = setup_agents(lang_code)
 
         research_task = Task(
-            description=f"Research: {question}\nNASA Data: {nasa_data.get('explanation', '')}",
+            description=f"Research: {question}\nNASA Context: {nasa_data.get('explanation', '')}",
             agent=researcher,
-            expected_output="3 verified technical points"
+            expected_output="3 verified technical points with sources",
+            async_execution=True
         )
 
         explain_task = Task(
-            description=f"Explain in {lang_code} using simple terms",
+            description=f"Explain in {lang_code} using simple analogies and examples",
             agent=educator,
-            expected_output="2-paragraph explanation",
+            expected_output="2-paragraph explanation suitable for non-experts",
             context=[research_task]
         )
 
@@ -112,34 +121,43 @@ def process_question(question, lang_code='en'):
         )
 
         return crew.kickoff()
+    
     except Exception as e:
-        return f"Processing error: {str(e)}"
+        st.error(f"AI Processing Error: {str(e)}")
+        return "Sorry, we encountered an error processing your question. Please try again."
 
 # Streamlit Interface
 st.title("🚀 Multilingual Space Agent")
 st.markdown("### Ask space questions in any language!")
 
+# Language Selection
 selected_lang = st.selectbox("Select Language", list(LANGUAGE_CODES.keys()))
 lang_code = LANGUAGE_CODES[selected_lang].split('-')[0]
 
+# Input Handling
 input_method = st.radio("Input Method", ["Text", "Audio"])
 question = ""
 
 if input_method == "Text":
-    question = st.text_input(f"Ask in {selected_lang}:", "")
+    question = st.text_input(f"Ask your space question in {selected_lang}:", "")
 else:
-    audio_file = st.file_uploader("Upload audio", type=["wav", "mp3", "ogg"])
+    audio_file = st.file_uploader("Upload audio question", type=["wav", "mp3", "ogg"])
     if audio_file:
         with st.spinner("Processing audio..."):
             question = speech_to_text(audio_file, LANGUAGE_CODES[selected_lang])
             if question:
-                st.text_area("Transcribed Text", value=question, height=100)
+                st.text_area("Transcribed Question", value=question, height=100)
 
+# Processing and Output
 if question:
-    with st.spinner("Analyzing with AI crew..."):
-        answer = process_question(question, lang_code)
-        st.markdown(f"### 🌍 Answer ({selected_lang}):")
-        st.markdown(answer)
+    with st.spinner("Analyzing with space experts..."):
+        try:
+            answer = process_question(question, lang_code)
+            st.markdown(f"### 🌍 Answer ({selected_lang}):")
+            st.markdown(answer)
+        except Exception as e:
+            st.error(f"Application Error: {str(e)}")
+            st.info("Please check your internet connection and try again.")
 
 st.markdown("---")
 st.markdown("*Powered by NASA API & Open Source AI*")
