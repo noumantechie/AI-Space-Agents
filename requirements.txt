@@ -1,9 +1,12 @@
 streamlit
 crewai
-langchain
+langchain-core
 langchain-community
+huggingface-hub
 requests
-speechrecognition
+SpeechRecognition
 pydub
-faiss-cpu
-numpy
+chromadb
+grpcio
+protobuf
+tiktoken
