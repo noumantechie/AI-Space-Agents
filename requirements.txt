@@ -1,7 +1,9 @@
 streamlit
 crewai
 langchain-community
+chromadb
 requests
 speechrecognition
 pydub
 faiss-cpu
+huggingface-hub
