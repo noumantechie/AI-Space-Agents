@@ -103,7 +103,6 @@ def process_question(question, target_lang='en'):
     """Process user question using AI agents"""
     try:
         nasa_data = get_nasa_data()
-        vector_store = load_knowledge_base()
         researcher, educator = setup_agents(target_lang)
 
         research_task = Task(
