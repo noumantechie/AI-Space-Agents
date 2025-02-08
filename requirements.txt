@@ -1,0 +1,7 @@
+streamlit
+crewai
+langchain-community
+requests
+speechrecognition
+pydub
+faiss-cpu
