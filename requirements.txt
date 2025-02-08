@@ -1,6 +1,6 @@
 streamlit
-crewai
-langchain-community
+crewai==0.28.8
+langchain-community==0.0.29
 requests
 speechrecognition
 pydub
