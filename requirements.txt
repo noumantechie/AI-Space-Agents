@@ -1,9 +1,11 @@
 streamlit
 crewai
-langchain-community
-#chromadb
 requests
+langchain_community
 speechrecognition
 pydub
 faiss-cpu
 huggingface-hub
+transformers
+torch
+numpy
