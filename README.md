@@ -1,5 +1,3 @@
-AI-Space-Agents# AI-Space-Agents
-
 ## Innovate with AI Agents for Space Exploration
 
 ### Project Description
