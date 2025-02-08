@@ -8,6 +8,10 @@ import os
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
+from crewai.utilities.embedding_configurator import EmbeddingConfigurator  # Explicit FAISS config
+
+# Configure CrewAI to use FAISS instead of ChromaDB
+EmbeddingConfigurator.configure_embedding(vector_db="faiss")  
 
 # Use Streamlit secrets for API keys
 NASA_API_URL = f"https://api.nasa.gov/planetary/apod?api_key={st.secrets['NASA_API_KEY']}"
@@ -62,7 +66,7 @@ def load_knowledge_base():
         loader = WebBaseLoader(["https://mars.nasa.gov/news/"])
         docs = loader.load()[:3]
         embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        return FAISS.from_documents(docs, embeddings)
+        return FAISS.from_documents(docs, embeddings)  # Using FAISS instead of ChromaDB
     except Exception as e:
         return None
 
