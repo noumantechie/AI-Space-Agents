@@ -1,10 +1,7 @@
 streamlit
-crewai==0.28.7
+crewai
 langchain-community
-langchain==0.1.15
 requests
 speechrecognition
 pydub
 faiss-cpu
-numpy
-huggingface_hub
