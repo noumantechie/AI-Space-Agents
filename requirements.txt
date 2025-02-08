@@ -1,6 +1,7 @@
 streamlit
 crewai==0.28.7
-langchain-community==0.1.15
+langchain-community
+langchain==0.1.15
 requests
 speechrecognition
 pydub
