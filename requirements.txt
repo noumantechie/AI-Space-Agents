@@ -1,11 +1,8 @@
 streamlit
-crewai
-requests
+crewai==0.15.0
 langchain_community
+chromadb==0.4.24
+faiss-cpu
+requests
 speechrecognition
 pydub
-faiss-cpu
-huggingface-hub
-transformers
-torch
-numpy
