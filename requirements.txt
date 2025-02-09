@@ -1,9 +1,9 @@
-streamlit
-crewai
-langchain-community
-chromadb
-requests
-speechrecognition
-pydub
+streamlit 
+crewai 
+langchain-community 
+requests 
+speechrecognition 
+pydub 
 faiss-cpu
-huggingface-hub
+torch 
+#torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
