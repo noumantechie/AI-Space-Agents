@@ -8,27 +8,13 @@ import os
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
-from crewai.utilities.embedding_configurator import EmbeddingConfigurator  # Explicit FAISS config
 
-# Configure CrewAI to use FAISS instead of ChromaDB
-EmbeddingConfigurator.configure_embedding(vector_db="faiss")  
+# Configuration
+NASA_API_URL = "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"
+HF_MODEL_NAME = "all-MiniLM-L6-v2"
+LLM_REPO = "HuggingFaceH4/zephyr-7b-beta"
+HUGGINGFACE_API_TOKEN = "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"
 
-# # Use Streamlit secrets for API keys
-# NASA_API_URL = f"https://api.nasa.gov/planetary/apod?api_key={st.secrets['NASA_API_KEY']}"
-# os.environ["HUGGINGFACE_API_TOKEN"] = st.secrets["HUGGINGFACE_API_TOKEN"]
-# Ensure Streamlit secrets are available before accessing them
-if "NASA_API_KEY" in st.secrets and "HUGGINGFACE_API_TOKEN" in st.secrets:
-    NASA_API_KEY = st.secrets["NASA_API_KEY"]
-    HUGGINGFACE_API_TOKEN = st.secrets["HUGGINGFACE_API_TOKEN"]
-
-    # Set environment variable securely
-    os.environ["HUGGINGFACE_API_TOKEN"] = HUGGINGFACE_API_TOKEN
-
-    # NASA API URL
-    NASA_API_URL = f"https://api.nasa.gov/planetary/apod?api_key={NASA_API_KEY}"
-
-else:
-    st.error("API keys not found in Streamlit secrets. Please check your `secrets.toml` file.")
 # Language Configuration
 LANGUAGE_CODES = {
     'English': 'en-US',
@@ -39,15 +25,20 @@ LANGUAGE_CODES = {
     'Arabic': 'ar-SA'
 }
 
+# Set Hugging Face API token in environment
+os.environ["HUGGINGFACE_API_KEY"] = HUGGINGFACE_API_TOKEN
+
 def speech_to_text(audio_file, language_code):
     """Convert uploaded audio file to text"""
     recognizer = sr.Recognizer()
 
     try:
+        # Save uploaded file to temporary location
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(audio_file.getvalue())
             audio_path = tmp_file.name
 
+        # Convert to WAV if necessary
         if not audio_path.endswith('.wav'):
             audio = AudioSegment.from_file(audio_path)
             wav_path = audio_path + ".wav"
@@ -66,24 +57,21 @@ def speech_to_text(audio_file, language_code):
             os.remove(audio_path)
 
 def get_nasa_data():
-    """Fetch space data from NASA API"""
     try:
         return requests.get(NASA_API_URL, timeout=10).json()
     except Exception as e:
         return {"error": f"NASA API Error: {str(e)}"}
 
 def load_knowledge_base():
-    """Load knowledge base from NASA news"""
     try:
         loader = WebBaseLoader(["https://mars.nasa.gov/news/"])
         docs = loader.load()[:3]
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        return FAISS.from_documents(docs, embeddings)  # Using FAISS instead of ChromaDB
+        embeddings = HuggingFaceEmbeddings(model_name=HF_MODEL_NAME)
+        return FAISS.from_documents(docs, embeddings)
     except Exception as e:
         return None
 
 def setup_agents(language='en'):
-    """Setup AI agents for research and explanation"""
     prompts = {
         'en': "Explain space concepts clearly in English",
         'es': "Explica conceptos espaciales en español",
@@ -94,47 +82,61 @@ def setup_agents(language='en'):
     }
 
     researcher = Agent(
-        role="Multilingual Space Data Analyst",
-        goal="Analyze, verify, and provide insights on space-related data from scientific sources.",
-        backstory="A space scientist with expertise in multilingual data analysis.",
+        role="Multilingual Space Analyst",
+        goal="Analyze and validate space information",
+        backstory="Expert in multilingual space data analysis with NASA mission experience.",
         verbose=True,
         llm="huggingface/HuggingFaceH4/zephyr-7b-beta",
-        llm_kwargs={"temperature": 0.3, "max_length": 512, "provider": "huggingface"},
+        llm_kwargs={
+            "temperature": 0.4,
+            "max_length": 512
+        },
         memory=True
     )
 
+
     educator = Agent(
-        role="Science Communicator",
-        goal=f"Explain space concepts in {language} simply.",
-        backstory=f"An educator fluent in {language} with astrophysics knowledge.",
+        role="Bilingual Science Educator",
+        goal=f"Explain complex concepts in {language} using simple terms",
+        backstory=f"Multilingual science communicator specializing in {language} explanations.",
         verbose=True,
         llm="huggingface/HuggingFaceH4/zephyr-7b-beta",
-        llm_kwargs={"temperature": 0.6, "max_length": 612, "provider": "huggingface"},
+        llm_kwargs={
+            "temperature": 0.5,
+            "max_length": 612
+        },
         memory=True
     )
 
     return researcher, educator
 
 def process_question(question, target_lang='en'):
-    """Process user question using AI agents"""
     try:
         nasa_data = get_nasa_data()
+        vector_store = load_knowledge_base()
         researcher, educator = setup_agents(target_lang)
 
         research_task = Task(
-            description=f"Research: {question} NASA Context: {nasa_data.get('explanation', '')}",
+            description=f"""Research: {question}
+            NASA Context: {nasa_data.get('explanation', '')}
+            Language: {target_lang}""",
             agent=researcher,
-            expected_output="3 verified technical points"
+            expected_output="3 verified technical points",
+            output_file="research.md"
         )
 
         explain_task = Task(
             description=f"Explain in {target_lang} using simple terms and analogies",
             agent=educator,
-            expected_output="2-paragraph answer",
-            dependencies=[research_task]
+            expected_output="2-paragraph answer in requested language",
+            context=[research_task]
         )
 
-        crew = Crew(agents=[researcher, educator], tasks=[research_task, explain_task], verbose=True)
+        crew = Crew(
+            agents=[researcher, educator],
+            tasks=[research_task, explain_task],
+            verbose=True
+        )
 
         return crew.kickoff()
     except Exception as e:
@@ -144,9 +146,9 @@ def process_question(question, target_lang='en'):
 st.title("🚀 Multilingual Space Agent")
 st.markdown("### Ask space questions in any language!")
 
-# Language Selection
+# Single language selection for both input and output
 selected_lang = st.selectbox("Select Language", list(LANGUAGE_CODES.keys()))
-lang_code = LANGUAGE_CODES[selected_lang].split('-')[0]
+lang_code = LANGUAGE_CODES[selected_lang].split('-')[0]  # Extract base language code
 
 # Input Method
 input_method = st.radio("Input Method", ["Text", "Audio File"])
