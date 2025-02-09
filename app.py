@@ -1,14 +1,21 @@
 import streamlit as st
+from crewai import Agent, Task, Crew
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import WebBaseLoader
 import requests
-from crewai import Agent, Task, Crew
 import os
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
+from crewai.utilities.embedding_configurator import EmbeddingConfigurator  # Explicit FAISS config
 
+# Configure CrewAI to use FAISS instead of ChromaDB
+EmbeddingConfigurator.configure_embedding(vector_db="faiss")  
+
+# # Use Streamlit secrets for API keys
+# NASA_API_URL = f"https://api.nasa.gov/planetary/apod?api_key={st.secrets['NASA_API_KEY']}"
+# os.environ["HUGGINGFACE_API_TOKEN"] = st.secrets["HUGGINGFACE_API_TOKEN"]
 # Ensure Streamlit secrets are available before accessing them
 if "NASA_API_KEY" in st.secrets and "HUGGINGFACE_API_TOKEN" in st.secrets:
     NASA_API_KEY = st.secrets["NASA_API_KEY"]
@@ -71,7 +78,7 @@ def load_knowledge_base():
         loader = WebBaseLoader(["https://mars.nasa.gov/news/"])
         docs = loader.load()[:3]
         embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        return FAISS.from_documents(docs, embeddings)
+        return FAISS.from_documents(docs, embeddings)  # Using FAISS instead of ChromaDB
     except Exception as e:
         return None
 
@@ -112,7 +119,6 @@ def process_question(question, target_lang='en'):
     """Process user question using AI agents"""
     try:
         nasa_data = get_nasa_data()
-        vector_store = load_knowledge_base()
         researcher, educator = setup_agents(target_lang)
 
         research_task = Task(
@@ -165,4 +171,3 @@ if question:
 
 st.markdown("---")
 st.markdown("*Powered by NASA API & Open Source AI*")
-
