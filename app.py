@@ -8,12 +8,16 @@ import os
 import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
+import litellm
 
 # Configuration
 NASA_API_URL = "https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"
 HF_MODEL_NAME = "all-MiniLM-L6-v2"
-LLM_REPO = "HuggingFaceH4/zephyr-7b-beta"
-HUGGINGFACE_API_TOKEN = "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"
+LLM_MODEL = "huggingface/HuggingFaceH4/zephyr-7b-beta"
+HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_API_KEY")
+
+# Set Hugging Face API token in environment
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = HUGGINGFACE_API_TOKEN 
 
 # Language Configuration
 LANGUAGE_CODES = {
@@ -24,9 +28,6 @@ LANGUAGE_CODES = {
     'Chinese': 'zh-CN',
     'Arabic': 'ar-SA'
 }
-
-# Set Hugging Face API token in environment
-os.environ["HUGGINGFACE_API_KEY"] = HUGGINGFACE_API_TOKEN
 
 def speech_to_text(audio_file, language_code):
     """Convert uploaded audio file to text"""
@@ -86,25 +87,16 @@ def setup_agents(language='en'):
         goal="Analyze and validate space information",
         backstory="Expert in multilingual space data analysis with NASA mission experience.",
         verbose=True,
-        llm="huggingface/HuggingFaceH4/zephyr-7b-beta",
-        llm_kwargs={
-            "temperature": 0.4,
-            "max_length": 512
-        },
+        llm=LLM_MODEL,
         memory=True
     )
-
 
     educator = Agent(
         role="Bilingual Science Educator",
         goal=f"Explain complex concepts in {language} using simple terms",
         backstory=f"Multilingual science communicator specializing in {language} explanations.",
         verbose=True,
-        llm="huggingface/HuggingFaceH4/zephyr-7b-beta",
-        llm_kwargs={
-            "temperature": 0.5,
-            "max_length": 612
-        },
+        llm=LLM_MODEL,
         memory=True
     )
 
@@ -143,7 +135,7 @@ def process_question(question, target_lang='en'):
         return f"Error: {str(e)}"
 
 # Streamlit Interface
-st.title("🚀 Multilingual Space Agent")
+st.title("🚀 COSMOLAB (Multilingual Space Agent)")
 st.markdown("### Ask space questions in any language!")
 
 # Single language selection for both input and output
@@ -167,9 +159,20 @@ else:
 
 if question:
     with st.spinner("Analyzing with AI agents..."):
-        answer = process_question(question, lang_code)
-        st.markdown(f"### 🌍 Answer ({selected_lang}):")
-        st.markdown(answer)
+        try:
+            # Use litellm to get AI response
+            response = litellm.completion(
+                model=LLM_MODEL,  # Correct model format
+                api_key=HUGGINGFACE_API_TOKEN,  # Ensure API Key is passed
+                messages=[{"role": "user", "content": question}]
+            )
+            answer = response['choices'][0]['message']['content']
+
+            st.markdown(f"### 🌍 Answer ({selected_lang}):")
+            st.markdown(answer)
+
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
 
 st.markdown("---")
-st.markdown("*Powered by NASA API & Open Source AI*")
+st.markdown("Powered by NASA API & Open Source AI")
